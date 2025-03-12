@@ -32,7 +32,7 @@ services:
       QGIS_SERVER_LANDING_PAGE_PROJECTS_THUMBNAIL_RESPONSIVE: "true"
       QGIS_SERVER_LANDING_PAGE_PROJECTS_THUMBNAIL_WIDTH: "400"
       QGIS_SERVER_LANDING_PAGE_PROJECTS_THUMBNAIL_HEIGHT: "300"
-     
+      
       # Apache/FCGI tuning
       FCGID_MAX_REQUESTS_PER_PROCESS: "1000"
       FCGID_MIN_PROCESSES: "2"
@@ -40,11 +40,10 @@ services:
       FCGID_BUSY_TIMEOUT: "300"
       FCGID_IDLE_TIMEOUT: "300"
       FCGID_IO_TIMEOUT: "60"
-      QT_CACHE_MAXSIZE: "52428800"  # 50MB
+      
+      # Make sure QGIS has a writable directory for auth database
       QGIS_CUSTOM_CONFIG_PATH: "/tmp/qgis_cache"
-
-      # Make sure to use the Apache server provided by the image
-      SERVER: "apache"
+      QGIS_AUTH_DB_DIR_PATH: "/tmp/qgis_cache"
     networks:
       - qgis-server-net
     ports:
@@ -54,7 +53,8 @@ services:
       - ./projects:/project:ro
       # Mount custom plugins if needed
       - ./plugins:/var/www/plugins:ro
-      - ./qgis_cache:/tmp/qgis_cache
+      # Create a cache volume for QGIS
+      - qgis_cache:/tmp/qgis_cache
     restart: unless-stopped
 
 networks:
@@ -64,3 +64,4 @@ networks:
 volumes:
   caddy_data:
   caddy_config:
+  qgis_cache:
