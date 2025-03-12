@@ -26,10 +26,9 @@ services:
       QGIS_SERVER_MAX_THREADS: "4"
       QGIS_SERVER_WMS_MAX_HEIGHT: "5000"
       QGIS_SERVER_WMS_MAX_WIDTH: "5000"
-      QGIS_PROJECT_FILE: ""  # Set to blank to allow using map parameter in GET requests
       
       # Landing page configuration
-      QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES: "/var/www/projects||/var/www/projects/bee_farming_project"
+      QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES: "/project||/project/bee_farming_project"
       
       # Apache/FCGI tuning
       FCGID_MAX_REQUESTS_PER_PROCESS: "1000"
@@ -39,25 +38,18 @@ services:
       FCGID_IDLE_TIMEOUT: "300"
       FCGID_IO_TIMEOUT: "60"
       
-      # Custom configurations for permissions
-      QGIS_CUSTOM_CONFIG_PATH: "/tmp/qgis"
-      
-      # For debugging
-      QGIS_DEBUG: "1"
-      
+      # Make sure to use the Apache server provided by the image
+      SERVER: "apache"
     networks:
       - qgis-server-net
     ports:
-      - "8080:80"  # The Camptocamp image exposes Apache on port 80
+      - "8080:8080"  # Note: The Camptocamp image uses port 8080, not 80
     volumes:
-      # Mount projects directory
-      - ./projects:/var/www/projects
+      # Mount projects directory to /project (where the image expects it)
+      - ./projects:/project:ro
       # Mount custom plugins if needed
-      - ./plugins:/var/www/plugins
-      # Mount temporary directory with proper permissions
-      - ./tmp:/tmp
+      - ./plugins:/var/www/plugins:ro
     restart: unless-stopped
-    # Removed user: "www-data" directive
 
 networks:
   qgis-server-net:
