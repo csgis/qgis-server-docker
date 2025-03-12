@@ -24,17 +24,38 @@ services:
       QGIS_SERVER_LOG_STDERR: "1"
       QGIS_PLUGINPATH: "/usr/share/qgis/python/plugins"
       QGIS_SERVER_PLUGIN_ProjectInfo: "1"
-      # Additional settings
-      FCGID_EXTRA_ENV: 'QGIS_PLUGINPATH,QGIS_SERVER_PLUGIN_ProjectInfo'
+      
+      # FastCGI configuration
+      FCGID_MIN_PROCESSES: "1"
+      FCGID_MAX_PROCESSES: "5"
+      FCGID_IDLE_TIMEOUT: "300"
+      FCGID_BUSY_TIMEOUT: "300"
+      FCGID_IO_TIMEOUT: "120"
+      
+      # Added environment variables based on documentation
+      FCGID_EXTRA_ENV: "QGIS_PLUGINPATH,QGIS_SERVER_PLUGIN_ProjectInfo"
+      QGIS_SERVER_IGNORE_BAD_LAYERS: "1"
+      QGIS_CUSTOM_CONFIG_PATH: "/var/lib/qgis"
+      QGIS_AUTH_DB_DIR_PATH: "/var/lib/qgis"
+      
+      # Locale settings
+      LOCALE: "en_US"
+      
+      # Debug settings
+      QGIS_DEBUG: "1"
+      APACHE_LOG_LEVEL: "debug"
     networks:
       - qgis-server-net
     ports:
-      - "8080:80"  # Note: Sourcepole image uses port 80 inside the container
+      - "8080:80"  # Port 80 is the default in the Sourcepole image
     volumes:
       # Mount projects directory to /data (where the Sourcepole image expects it)
       - ./projects:/data:ro
       # Mount custom plugins
       - ./plugins:/usr/share/qgis/python/plugins:ro
+      # Create writable directories for QGIS configuration and cache
+      - qgis_custom_config:/var/lib/qgis
+      - qgis_cache:/.cache
     restart: unless-stopped
 
 networks:
@@ -44,3 +65,5 @@ networks:
 volumes:
   caddy_data:
   caddy_config:
+  qgis_custom_config:
+  qgis_cache:
