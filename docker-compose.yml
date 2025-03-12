@@ -31,6 +31,8 @@ services:
       QGIS_SERVER_LOG_STDERR: "true"
       # Enable our plugin
       QGIS_SERVER_PLUGIN_ProjectInfo: "1"
+      # Set display for Xvfb
+      DISPLAY: ":99"
     networks:
       - qgis-server-net
     volumes:
@@ -39,10 +41,12 @@ services:
       # Mount plugins directory
       - ./plugins:/io/plugins
     restart: unless-stopped
-    # Override the entrypoint to start FCGI explicitly
+    # Override the entrypoint to start Xvfb and FCGI
     entrypoint: /bin/bash
     command: >
-      -c "spawn-fcgi -p 9993 -n -d /tmp -f /usr/lib/cgi-bin/qgis_mapserv.fcgi && 
+      -c "Xvfb :99 -screen 0 1024x768x24 -ac +extension GLX +render -noreset -nolisten tcp & 
+          sleep 2 && 
+          spawn-fcgi -p 9993 -n -d /tmp -f /usr/lib/cgi-bin/qgis_mapserv.fcgi && 
           echo 'QGIS Server started on port 9993' && 
           tail -f /dev/null"
 
