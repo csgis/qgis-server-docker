@@ -20,38 +20,51 @@ services:
     image: "camptocamp/qgis-server:latest"
     environment:
       # QGIS Server configuration
-      QGIS_SERVER_LOG_STDERR: 1
+      QGIS_SERVER_LOG_LEVEL: "2"
+      QGIS_SERVER_LOG_STDERR: "1"
       QGIS_SERVER_PARALLEL_RENDERING: "true"
-      QGIS_SERVER_MAX_THREADS: 4
-      QGIS_SERVER_WMS_MAX_HEIGHT: 5000
-      QGIS_SERVER_WMS_MAX_WIDTH: 5000
+      QGIS_SERVER_MAX_THREADS: "4"
+      QGIS_SERVER_WMS_MAX_HEIGHT: "5000"
+      QGIS_SERVER_WMS_MAX_WIDTH: "5000"
       QGIS_PROJECT_FILE: ""  # Set to blank to allow using map parameter in GET requests
-      QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES: "/var/www/projects||/var/www/projects/bee_farming_project"  # Path where projects are mounted
-      QGIS_CUSTOM_CONFIG_PATH: "/tmp/qgis_config"
+      
+      # Landing page configuration
+      QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES: "/var/www/projects||/var/www/projects/bee_farming_project"
       
       # Apache/FCGI tuning
-      FCGID_MAX_REQUESTS_PER_PROCESS: 1000
-      FCGID_MIN_PROCESSES: 2
-      FCGID_MAX_PROCESSES: 10
-      FCGID_BUSY_TIMEOUT: 300
-      FCGID_IDLE_TIMEOUT: 300
-      FCGID_IO_TIMEOUT: 60
+      FCGID_MAX_REQUESTS_PER_PROCESS: "1000"
+      FCGID_MIN_PROCESSES: "2"
+      FCGID_MAX_PROCESSES: "10"
+      FCGID_BUSY_TIMEOUT: "300"
+      FCGID_IDLE_TIMEOUT: "300"
+      FCGID_IO_TIMEOUT: "60"
       
-      # For debugging (uncomment if needed)
-      # QGIS_CATCH_SEGV: 1
+      # Custom configurations for permissions
+      QGIS_CUSTOM_CONFIG_PATH: "/tmp/qgis"
+      # Set home to a writable location
+      HOME: "/tmp"
+      
+      # For debugging
+      QGIS_DEBUG: "1"
+      QGIS_CATCH_SEGV: "1"
+      
     networks:
       - qgis-server-net
+    ports:
+      - "8080:80"  # The Camptocamp image exposes Apache on port 80
     volumes:
-      # Mount projects directory to a location in /var/www
+      # Mount projects directory with write permissions for testing
       - ./projects:/var/www/projects
       # Mount custom plugins if needed
-      # - ./plugins:/var/www/plugins
+      - ./plugins:/var/www/plugins
       # Mount custom fonts if needed 
-      # - ./fonts:/etc/qgisserver/fonts
-      - ./tmp:/tmp/qgis_config
+      - ./fonts:/etc/qgisserver/fonts
+      # Mount temporary directory with proper permissions
+      - ./tmp:/tmp
+      # Make sure www-data can write to /var/www
+      - ./tmp:/var/www/.qgis3
     restart: unless-stopped
-    ports:
-      - "8080:80"  # The Camptocamp image exposes Apache on port 80, not 8080
+    user: "www-data"  # Try running as www-data explicitly
 
 networks:
   qgis-server-net:
