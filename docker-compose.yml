@@ -41,30 +41,23 @@ services:
       
       # Custom configurations for permissions
       QGIS_CUSTOM_CONFIG_PATH: "/tmp/qgis"
-      # Set home to a writable location
-      HOME: "/tmp"
       
       # For debugging
       QGIS_DEBUG: "1"
-      QGIS_CATCH_SEGV: "1"
       
     networks:
       - qgis-server-net
     ports:
       - "8080:80"  # The Camptocamp image exposes Apache on port 80
     volumes:
-      # Mount projects directory with write permissions for testing
+      # Mount projects directory
       - ./projects:/var/www/projects
       # Mount custom plugins if needed
       - ./plugins:/var/www/plugins
-      # Mount custom fonts if needed 
-      - ./fonts:/etc/qgisserver/fonts
       # Mount temporary directory with proper permissions
       - ./tmp:/tmp
-      # Make sure www-data can write to /var/www
-      - ./tmp:/var/www/.qgis3
     restart: unless-stopped
-    user: "www-data"  # Try running as www-data explicitly
+    # Removed user: "www-data" directive
 
 networks:
   qgis-server-net:
