@@ -27,7 +27,7 @@ services:
       QGIS_SERVER_WMS_MAX_WIDTH: 5000
       QGIS_PROJECT_FILE: ""  # Set to blank to allow using map parameter in GET requests
       QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES: "/var/www/projects||/var/www/projects/bee_farming_project"  # Path where projects are mounted
-
+      QGIS_CUSTOM_CONFIG_PATH: "/tmp/qgis_config"
       
       # Apache/FCGI tuning
       FCGID_MAX_REQUESTS_PER_PROCESS: 1000
@@ -48,6 +48,7 @@ services:
       # - ./plugins:/var/www/plugins
       # Mount custom fonts if needed 
       # - ./fonts:/etc/qgisserver/fonts
+      - ./tmp:/tmp/qgis_config
     restart: unless-stopped
     ports:
       - "8080:80"  # The Camptocamp image exposes Apache on port 80, not 8080
