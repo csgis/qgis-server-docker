@@ -26,7 +26,9 @@ services:
       QGIS_SERVER_WMS_MAX_HEIGHT: 5000
       QGIS_SERVER_WMS_MAX_WIDTH: 5000
       QGIS_PROJECT_FILE: ""  # Set to blank to allow using map parameter in GET requests
-      QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES: "/etc/qgisserver"
+      QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES: "/var/www/projects||/var/www/projects/bee_farming_project"  # Path where projects are mounted
+
+      
       # Apache/FCGI tuning
       FCGID_MAX_REQUESTS_PER_PROCESS: 1000
       FCGID_MIN_PROCESSES: 2
@@ -40,8 +42,8 @@ services:
     networks:
       - qgis-server-net
     volumes:
-      # Mount projects directory (read-only is recommended for production)
-      - ./projects:/etc/qgisserver:ro
+      # Mount projects directory to a location in /var/www
+      - ./projects:/var/www/projects
       # Mount custom plugins if needed
       # - ./plugins:/var/www/plugins
       # Mount custom fonts if needed 
