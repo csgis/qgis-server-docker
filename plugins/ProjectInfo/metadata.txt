@@ -1,19 +1,9 @@
 [general]
 name=ProjectInfo
-qgisMinimumVersion=3.14
-description=Provides JSON API to get information about QGIS projects
-version=1.0.0
+qgisMinimumVersion=3.16
+description=Project Information API
+about=Provides information about QGIS server projects
+version=0.1
 author=QGIS Developer
 email=info@qgis.org
-
-about=This plugin provides a REST API for accessing information about QGIS server projects, including metadata, layers, and layouts.
-
-tracker=https://github.com/yourusername/qgis-projectinfo/issues
-repository=https://github.com/yourusername/qgis-projectinfo
-homepage=https://github.com/yourusername/qgis-projectinfo
-
 server=True
-
-tags=server,web,json,api,projects,metadata
-
-category=Web

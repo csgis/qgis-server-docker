@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 """
- QGIS Server Plugin: ProjectInfo
- Provides a JSON endpoint for QGIS Server project information
+QGIS Server Plugin: ProjectInfo
+Provides JSON endpoint for QGIS Server project information
 """
 
 import os
 import json
-import traceback
 from qgis.server import (
     QgsServerFilter,
     QgsServerRequest,
@@ -30,31 +29,21 @@ class ProjectInfoFilter(QgsServerFilter):
         self.server_iface = server_iface
         log_message("ProjectInfo filter initialized")
         
-    def requestReady(self):
-        """Called when request is ready"""
-        # We don't handle the request here, we wait for responseReady
-        pass
-        
-    def sendResponse(self):
-        """Called when response is ready to be sent"""
-        # We don't modify the server's response
-        pass
-        
     def responseReady(self):
         """Called when response has been prepared but not yet sent"""
-        request = self.server_iface.requestHandler().requestMethod()
-        params = self.server_iface.requestHandler().parameterMap()
+        handler = self.server_iface.requestHandler()
+        params = handler.parameterMap()
         
         # Check if this is a request for our service
         service = params.get('SERVICE', '').upper()
         if service != 'PROJECTINFO':
             return
             
-        # Log that we're handling it
         log_message(f"Handling ProjectInfo request: {params}")
         
-        # Capture the response
+        # Determine which action to take
         req_param = params.get('REQUEST', '').upper()
+        
         try:
             if req_param == 'GETPROJECTS':
                 self.get_projects()
@@ -74,7 +63,6 @@ class ProjectInfoFilter(QgsServerFilter):
             
         except Exception as e:
             log_message(f"Error handling ProjectInfo request: {str(e)}", Qgis.Critical)
-            log_message(traceback.format_exc(), Qgis.Critical)
             self.send_error_response(str(e), 500)
         
     def get_projects(self):
@@ -116,7 +104,6 @@ class ProjectInfoFilter(QgsServerFilter):
             
         except Exception as e:
             log_message(f"Error handling projects request: {str(e)}", Qgis.Critical)
-            log_message(traceback.format_exc(), Qgis.Critical)
             self.send_error_response(str(e), 500)
 
     def get_project_details(self, project_path):
@@ -184,37 +171,12 @@ class ProjectInfoFilter(QgsServerFilter):
             
         except Exception as e:
             log_message(f"Error handling project details request: {str(e)}", Qgis.Critical)
-            log_message(traceback.format_exc(), Qgis.Critical)
             self.send_error_response(str(e), 500)
             
     def get_projects_directory(self):
         """Get the directory containing QGIS projects"""
-        # Try multiple possible locations for the projects directory
-        candidates = [
-            # Environment variables
-            os.environ.get('QGIS_SERVER_PROJECTS_DIR'),
-            # Landing page setting (split first entry if exists)
-            os.environ.get('QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES', '').split('||')[0] 
-                if os.environ.get('QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES') else None,
-            # Camptocamp default
-            '/project'
-        ]
-        
-        # Use the first path that exists
-        for path in candidates:
-            if path and os.path.exists(path):
-                log_message(f"Using projects directory: {path}")
-                return path
-                
-        # If no directory exists, use a default
-        default_dir = '/tmp/qgis_projects'
-        log_message(f"No valid projects directory found, using default: {default_dir}", Qgis.Warning)
-        
-        # Create the directory if it doesn't exist
-        if not os.path.exists(default_dir):
-            os.makedirs(default_dir)
-            
-        return default_dir
+        # Sourcepole QGIS Server typically uses /data for projects
+        return "/data"
 
     def send_json_response(self, data):
         """Send a JSON response by overriding the current response"""
@@ -240,7 +202,6 @@ class ProjectInfoFilter(QgsServerFilter):
         
         handler.appendBody(json.dumps(error_data, indent=2).encode('utf-8'))
 
-
 class ProjectInfoServer:
     """QGIS Server Plugin implementation"""
     
@@ -254,7 +215,6 @@ class ProjectInfoServer:
         # Log plugin startup
         log_message('ProjectInfo plugin loaded and filter registered')
 
-
 def serverClassFactory(server_iface):
     """
     Class factory for QGIS Server Plugin
@@ -267,5 +227,4 @@ def serverClassFactory(server_iface):
         return ProjectInfoServer(server_iface)
     except Exception as e:
         log_message(f"Error initializing ProjectInfo plugin: {str(e)}", Qgis.Critical)
-        log_message(traceback.format_exc(), Qgis.Critical)
         return None

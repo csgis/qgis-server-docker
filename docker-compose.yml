@@ -17,47 +17,24 @@ services:
       - qgis-server
 
   qgis-server:
-    image: "camptocamp/qgis-server:latest"
+    image: "sourcepole/qwc-qgis-server:3.34"
     environment:
       # QGIS Server configuration
-      QGIS_SERVER_LOG_LEVEL: "2"
+      QGIS_SERVER_LOG_LEVEL: "0"  # Most verbose logging
       QGIS_SERVER_LOG_STDERR: "1"
-      QGIS_SERVER_PARALLEL_RENDERING: "true"
-      QGIS_SERVER_MAX_THREADS: "4"
-      QGIS_SERVER_WMS_MAX_HEIGHT: "5000"
-      QGIS_SERVER_WMS_MAX_WIDTH: "5000"
-      
-      # Landing page configuration
-      QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES: "/project||/project/bee_farming_project||/project/tokyo"
-      QGIS_SERVER_LANDING_PAGE_PROJECTS_THUMBNAIL_RESPONSIVE: "true"
-      QGIS_SERVER_LANDING_PAGE_PROJECTS_THUMBNAIL_WIDTH: "400"
-      QGIS_SERVER_LANDING_PAGE_PROJECTS_THUMBNAIL_HEIGHT: "300"
-      QGIS_SERVER_PLUGINPATH: "/var/www/plugins"
-      QGIS_PLUGINPATH: "/var/www/plugins"
+      QGIS_PLUGINPATH: "/usr/share/qgis/python/plugins"
       QGIS_SERVER_PLUGIN_ProjectInfo: "1"
-        
-      # Apache/FCGI tuning
-      FCGID_MAX_REQUESTS_PER_PROCESS: "1000"
-      FCGID_MIN_PROCESSES: "2"
-      FCGID_MAX_PROCESSES: "10"
-      FCGID_BUSY_TIMEOUT: "300"
-      FCGID_IDLE_TIMEOUT: "300"
-      FCGID_IO_TIMEOUT: "60"
-      
-      # Make sure QGIS has a writable directory for auth database
-      QGIS_CUSTOM_CONFIG_PATH: "/tmp/qgis_cache"
-      QGIS_AUTH_DB_DIR_PATH: "/tmp/qgis_cache"
+      # Additional settings
+      FCGID_EXTRA_ENV: 'QGIS_PLUGINPATH,QGIS_SERVER_PLUGIN_ProjectInfo'
     networks:
       - qgis-server-net
     ports:
-      - "8080:8080"  # Note: The Camptocamp image uses port 8080, not 80
+      - "8080:80"  # Note: Sourcepole image uses port 80 inside the container
     volumes:
-      # Mount projects directory to /project (where the image expects it)
-      - ./projects:/project:ro
-      # Mount custom plugins if needed
-      - ./plugins:/var/www/plugins:ro
-      # Create a cache volume for QGIS
-      - qgis_cache:/tmp/qgis_cache
+      # Mount projects directory to /data (where the Sourcepole image expects it)
+      - ./projects:/data:ro
+      # Mount custom plugins
+      - ./plugins:/usr/share/qgis/python/plugins:ro
     restart: unless-stopped
 
 networks:
@@ -67,4 +44,3 @@ networks:
 volumes:
   caddy_data:
   caddy_config:
-  qgis_cache:
