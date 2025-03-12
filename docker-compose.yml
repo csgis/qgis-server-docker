@@ -19,9 +19,8 @@ services:
   qgis-server:
     image: "qgis/qgis-server:stable"
     environment:
-      # Do not run the embedded copy of nginx
-      SKIP_NGINX: "true"
       # Configure QGIS Server
+      DISPLAY: ":99"
       QGIS_PLUGINPATH: "/io/plugins"
       QGIS_SERVER_PARALLEL_RENDERING: "true"
       QGIS_SERVER_MAX_THREADS: "4"
@@ -31,6 +30,12 @@ services:
       QGIS_SERVER_LOG_STDERR: "true"
       # Plugin-specific environment variables
       QGIS_SERVER_PLUGIN_ProjectInfo: "1"
+      # Skip Nginx (we'll use Caddy instead)
+      SKIP_NGINX: "true"
+      # Set HOME directory
+      HOME: "/var/lib/qgis"
+      # User to run QGIS
+      QGIS_USER: "www-data"
     networks:
       - qgis-server-net
     volumes:
@@ -38,16 +43,59 @@ services:
       - ./projects:/io/data:ro
       # Mount plugins directory
       - ./plugins:/io/plugins
-      # Optional: Mount custom fonts and SVG symbols if needed
-      # - ./fonts:/usr/share/fonts
-      # - ./svg:/var/lib/qgis/.local/share/QGIS/QGIS3/profiles/default/svg
+      # Mount home directory for QGIS
+      - qgis_home:/var/lib/qgis
+      # Optional: Mount fonts if needed
+      # - ./fonts:/usr/share/fonts:ro
     restart: unless-stopped
+    # Use a custom entrypoint script
+    entrypoint: /entrypoint.sh
+    # Add a custom entrypoint script to the container
     command: >
-      sh -c "mkdir -p /var/log/qgis &&
-             Xvfb :99 -screen 0 1024x768x24 -ac +extension GLX +render -noreset -nolisten tcp &
-             export DISPLAY=:99 &&
-             spawn-fcgi -p 9993 -n -d /tmp 
-             /usr/lib/cgi-bin/qgis_mapserv.fcgi"
+      bash -c "cat > /entrypoint.sh << 'EOF'
+      #!/bin/bash
+      
+      cleanup() {
+          kill \$XVFB_PID \$QGIS_PID || true
+      }
+      
+      waitfor() {
+          while ! pidof \$1 >/dev/null; do
+              sleep 1
+          done
+          pidof \$1
+      }
+      
+      trap cleanup SIGINT SIGTERM
+      
+      # Remove any stale lock files
+      rm -f /tmp/.X99-lock
+      
+      # Update font cache
+      fc-cache -v
+      
+      # Start Xvfb
+      echo "Starting Xvfb..."
+      /usr/bin/Xvfb :99 -ac -screen 0 1280x1024x16 +extension GLX +render -noreset >/dev/null 2>&1 &
+      XVFB_PID=\$!
+      
+      # Wait for Xvfb
+      sleep 2
+      
+      # Start QGIS Server
+      echo "Starting QGIS Server..."
+      mkdir -p /run
+      spawn-fcgi -n -u \${QGIS_USER:-www-data} -g \${QGIS_USER:-www-data} -d \${HOME:-/var/lib/qgis} -P /run/qgis.pid -p 9993 -- /usr/lib/cgi-bin/qgis_mapserv.fcgi &
+      QGIS_PID=\$!
+      
+      echo "QGIS Server started with PID \$QGIS_PID"
+      
+      # Keep the container running
+      wait \$QGIS_PID
+      EOF
+      
+      chmod +x /entrypoint.sh && 
+      /entrypoint.sh"
 
 networks:
   qgis-server-net:
@@ -56,3 +104,4 @@ networks:
 volumes:
   caddy_data:
   caddy_config:
+  qgis_home:
