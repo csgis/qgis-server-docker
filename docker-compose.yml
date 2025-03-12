@@ -28,7 +28,7 @@ services:
       QGIS_SERVER_WMS_MAX_WIDTH: "5000"
       
       # Landing page configuration
-      QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES: "/project||/project/bee_farming_project"
+      QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES: "/project||/project/bee_farming_project||/project/tokyo"
       QGIS_SERVER_LANDING_PAGE_PROJECTS_THUMBNAIL_RESPONSIVE: "true"
       QGIS_SERVER_LANDING_PAGE_PROJECTS_THUMBNAIL_WIDTH: "400"
       QGIS_SERVER_LANDING_PAGE_PROJECTS_THUMBNAIL_HEIGHT: "300"
