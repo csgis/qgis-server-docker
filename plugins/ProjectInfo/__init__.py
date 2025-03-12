@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 QGIS Server Plugin: ProjectInfo
-Provides JSON endpoint for QGIS Server project information
+Provides JSON endpoint for QGIS Server project information via a custom WMS GetProjectInfo request
 """
 
 import os
@@ -22,7 +22,7 @@ def log_message(message, level=Qgis.Info):
     QgsMessageLog.logMessage(message, 'ProjectInfo Plugin', level)
 
 class ProjectInfoFilter(QgsServerFilter):
-    """Filter that intercepts QGIS Server requests to provide project information"""
+    """Filter that intercepts QGIS Server WMS requests to provide project information"""
     
     def __init__(self, server_iface):
         super(ProjectInfoFilter, self).__init__(server_iface)
@@ -34,41 +34,39 @@ class ProjectInfoFilter(QgsServerFilter):
         handler = self.server_iface.requestHandler()
         params = handler.parameterMap()
         
-        # Check if this is a request for our service
+        # Check if this is a WMS request for our custom operation
         service = params.get('SERVICE', '').upper()
-        if service != 'PROJECTINFO':
-            return
-            
-        log_message(f"Handling ProjectInfo request: {params}")
+        request = params.get('REQUEST', '').upper()
         
-        # Determine which action to take
-        req_param = params.get('REQUEST', '').upper()
-        
-        try:
-            if req_param == 'GETPROJECTS':
-                self.get_projects()
-                return
+        # Intercept WMS GetProjectInfo requests
+        if service == 'WMS' and request == 'GETPROJECTINFO':
+            try:
+                mode = params.get('MODE', '').upper()
                 
-            elif req_param == 'GETPROJECTDETAILS':
-                project_path = params.get('PROJECT', '')
-                if project_path:
-                    self.get_project_details(project_path)
-                    return
-                else:
-                    self.send_error_response("Missing PROJECT parameter", 400)
+                if mode == 'LIST':
+                    self.get_projects()
                     return
                     
-            # Default action is to list projects
-            self.get_projects()
-            
-        except Exception as e:
-            log_message(f"Error handling ProjectInfo request: {str(e)}", Qgis.Critical)
-            self.send_error_response(str(e), 500)
+                elif mode == 'DETAILS':
+                    project_path = params.get('PROJECT', '')
+                    if project_path:
+                        self.get_project_details(project_path)
+                        return
+                    else:
+                        self.send_error_response("Missing PROJECT parameter", 400)
+                        return
+                
+                # Default to project list
+                self.get_projects()
+                
+            except Exception as e:
+                log_message(f"Error handling GetProjectInfo request: {str(e)}", Qgis.Critical)
+                self.send_error_response(str(e), 500)
         
     def get_projects(self):
         """Return list of all available projects"""
         try:
-            projects_dir = self.get_projects_directory()
+            projects_dir = "/data"  # Hardcoded for Sourcepole image
             
             # Scan for .qgs and .qgz files
             project_files = []
@@ -115,7 +113,7 @@ class ProjectInfoFilter(QgsServerFilter):
                 return
                 
             # Get full path
-            projects_dir = self.get_projects_directory()
+            projects_dir = "/data"  # Hardcoded for Sourcepole image
             full_path = os.path.join(projects_dir, project_path)
             
             # Check if file exists
@@ -172,11 +170,6 @@ class ProjectInfoFilter(QgsServerFilter):
         except Exception as e:
             log_message(f"Error handling project details request: {str(e)}", Qgis.Critical)
             self.send_error_response(str(e), 500)
-            
-    def get_projects_directory(self):
-        """Get the directory containing QGIS projects"""
-        # Sourcepole QGIS Server typically uses /data for projects
-        return "/data"
 
     def send_json_response(self, data):
         """Send a JSON response by overriding the current response"""
