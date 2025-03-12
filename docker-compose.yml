@@ -29,7 +29,10 @@ services:
       
       # Landing page configuration
       QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES: "/project||/project/bee_farming_project"
-      
+      QGIS_SERVER_LANDING_PAGE_PROJECTS_THUMBNAIL_RESPONSIVE: "true"
+      QGIS_SERVER_LANDING_PAGE_PROJECTS_THUMBNAIL_WIDTH: "400"
+      QGIS_SERVER_LANDING_PAGE_PROJECTS_THUMBNAIL_HEIGHT: "300"
+     
       # Apache/FCGI tuning
       FCGID_MAX_REQUESTS_PER_PROCESS: "1000"
       FCGID_MIN_PROCESSES: "2"
