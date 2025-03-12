@@ -43,9 +43,9 @@ services:
       # Mount projects directory (read-only is recommended for production)
       - ./projects:/etc/qgisserver:ro
       # Mount custom plugins if needed
-      - ./plugins:/var/www/plugins
+      # - ./plugins:/var/www/plugins
       # Mount custom fonts if needed 
-      - ./fonts:/etc/qgisserver/fonts
+      # - ./fonts:/etc/qgisserver/fonts
     restart: unless-stopped
     expose:
       - "8080"  # The Camptocamp image exposes QGIS Server on port 8080
