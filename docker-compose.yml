@@ -17,46 +17,35 @@ services:
       - qgis-server
 
   qgis-server:
-    image: "sourcepole/qwc-qgis-server:3.34"
+    image: "qgis/qgis-server:stable"
     environment:
-      # QGIS Server configuration
-      QGIS_SERVER_LOG_LEVEL: "0"  # Most verbose logging
-      QGIS_SERVER_LOG_STDERR: "1"
-      QGIS_PLUGINPATH: "/usr/share/qgis/python/plugins"
+      # Do not run the embedded copy of nginx
+      SKIP_NGINX: "true"
+      # Configure QGIS Server
+      QGIS_PLUGINPATH: "/io/plugins"
+      QGIS_SERVER_PARALLEL_RENDERING: "true"
+      QGIS_SERVER_MAX_THREADS: "4"
+      QGIS_SERVER_WMS_MAX_HEIGHT: "5000"
+      QGIS_SERVER_WMS_MAX_WIDTH: "5000"
+      QGIS_SERVER_LOG_LEVEL: "0"  # Most verbose for debugging
+      QGIS_SERVER_LOG_STDERR: "true"
+      # Plugin-specific environment variables
       QGIS_SERVER_PLUGIN_ProjectInfo: "1"
-      
-      # FastCGI configuration
-      FCGID_MIN_PROCESSES: "1"
-      FCGID_MAX_PROCESSES: "5"
-      FCGID_IDLE_TIMEOUT: "300"
-      FCGID_BUSY_TIMEOUT: "300"
-      FCGID_IO_TIMEOUT: "120"
-      
-      # Added environment variables based on documentation
-      FCGID_EXTRA_ENV: "QGIS_PLUGINPATH,QGIS_SERVER_PLUGIN_ProjectInfo"
-      QGIS_SERVER_IGNORE_BAD_LAYERS: "1"
-      QGIS_CUSTOM_CONFIG_PATH: "/var/lib/qgis"
-      QGIS_AUTH_DB_DIR_PATH: "/var/lib/qgis"
-      
-      # Locale settings
-      LOCALE: "en_US"
-      
-      # Debug settings
-      QGIS_DEBUG: "1"
-      APACHE_LOG_LEVEL: "debug"
     networks:
       - qgis-server-net
-    ports:
-      - "8080:80"  # Port 80 is the default in the Sourcepole image
     volumes:
-      # Mount projects directory to /data (where the Sourcepole image expects it)
-      - ./projects:/data:ro
-      # Mount custom plugins
-      - ./plugins:/usr/share/qgis/python/plugins:ro
-      # Create writable directories for QGIS configuration and cache
-      - qgis_custom_config:/var/lib/qgis
-      - qgis_cache:/.cache
+      # Mount project data
+      - ./projects:/io/data:ro
+      # Mount plugins directory
+      - ./plugins:/io/plugins
+      # Optional: Mount custom fonts and SVG symbols if needed
+      # - ./fonts:/usr/share/fonts
+      # - ./svg:/var/lib/qgis/.local/share/QGIS/QGIS3/profiles/default/svg
     restart: unless-stopped
+    command: >
+      sh -c "mkdir -p /var/log/qgis &&
+             spawn-fcgi -p 9993 -n -d /tmp 
+             /usr/lib/cgi-bin/qgis_mapserv.fcgi"
 
 networks:
   qgis-server-net:
@@ -65,5 +54,3 @@ networks:
 volumes:
   caddy_data:
   caddy_config:
-  qgis_custom_config:
-  qgis_cache:

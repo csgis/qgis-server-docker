@@ -1,16 +1,61 @@
 alpaka.cuprit.net {
-    # Enable automatic HTTPS with Let's Encrypt
-    # Remove the 'tls internal' line to use Let's Encrypt instead of self-signed certs
+    # Setup HTTPS automatically with Let's Encrypt
+    tls internal
 
-    # Proxy requests to QGIS Server running on Apache (port 80)
-    reverse_proxy qgis-server:80 {
-        # Optional headers for better proxy handling
-        header_up Host {host}
+    # Add CORS headers
+    header {
+        Access-Control-Allow-Origin *
+        Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type"
     }
 
-    # Logging options
+    # Add logging for debugging
     log {
-        output file /var/log/caddy/alpaka.cuprit.net.log
-        format json
+        output file /data/access.log
+        format console
+    }
+
+    # Regular QGIS Server requests - pass all parameters
+    @qgis_requests {
+        path /?
+        path /ows*
+    }
+    reverse_proxy @qgis_requests qgis-server:9993 {
+        transport fastcgi {
+            env SCRIPT_NAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
+            env SCRIPT_FILENAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
+            split .php
+        }
+        # Increase timeouts for large map requests
+        transport http {
+            response_header_timeout 300s
+            dial_timeout 30s
+        }
+    }
+
+    # Projects listing endpoint
+    route /projects {
+        reverse_proxy qgis-server:9993 {
+            transport fastcgi {
+                env SCRIPT_NAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
+                env SCRIPT_FILENAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
+                env QUERY_STRING SERVICE=PROJECTINFO&REQUEST=GETPROJECTS
+                split .php
+            }
+        }
+        header Content-Type application/json
+    }
+
+    # Project details endpoint
+    route /projects/* {
+        reverse_proxy qgis-server:9993 {
+            transport fastcgi {
+                env SCRIPT_NAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
+                env SCRIPT_FILENAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
+                env QUERY_STRING {query}&SERVICE=PROJECTINFO&REQUEST=GETPROJECTDETAILS&PROJECT={path.1}
+                split .php
+            }
+        }
+        header Content-Type application/json
     }
 }
