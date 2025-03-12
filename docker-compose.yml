@@ -37,7 +37,9 @@ services:
       FCGID_BUSY_TIMEOUT: "300"
       FCGID_IDLE_TIMEOUT: "300"
       FCGID_IO_TIMEOUT: "60"
-      
+      QT_CACHE_MAXSIZE: "52428800"  # 50MB
+      QGIS_CUSTOM_CONFIG_PATH: "/tmp/qgis_cache"
+
       # Make sure to use the Apache server provided by the image
       SERVER: "apache"
     networks:
@@ -49,6 +51,7 @@ services:
       - ./projects:/project:ro
       # Mount custom plugins if needed
       - ./plugins:/var/www/plugins:ro
+      - ./qgis_cache:/tmp/qgis_cache
     restart: unless-stopped
 
 networks:
