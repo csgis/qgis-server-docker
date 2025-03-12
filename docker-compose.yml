@@ -47,8 +47,8 @@ services:
       # Mount custom fonts if needed 
       # - ./fonts:/etc/qgisserver/fonts
     restart: unless-stopped
-    expose:
-      - "8080"  # The Camptocamp image exposes QGIS Server on port 8080
+    ports:
+      - "8080:80"  # The Camptocamp image exposes Apache on port 80, not 8080
 
 networks:
   qgis-server-net:
