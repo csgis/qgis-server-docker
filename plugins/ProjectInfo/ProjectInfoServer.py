@@ -211,6 +211,18 @@ class ProjectInfoService(QgsService):
             # Try environment variable
             projects_dir = os.environ.get('QGIS_SERVER_PROJECTS_DIR')
             
+        if not projects_dir:
+            # Check landing page directories (useful for Camptocamp image)
+            landing_page_dirs = os.environ.get('QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES', '')
+            if landing_page_dirs:
+                # Use the first directory from the list
+                projects_dir = landing_page_dirs.split('||')[0]
+                
+        if not projects_dir:
+            # For Camptocamp image, the default is almost always /project
+            if os.path.exists('/project'):
+                projects_dir = '/project'
+            
         if not projects_dir or not os.path.exists(projects_dir):
             # Fallback to default location
             projects_dir = os.path.join(QgsApplication.qgisSettingsDirPath(), "server")
@@ -219,7 +231,7 @@ class ProjectInfoService(QgsService):
         if not os.path.exists(projects_dir):
             os.makedirs(projects_dir)
             
-        self.logger.logMessage(f"Using projects directory: {projects_dir}")
+        self.logger.logMessage(f"ProjectInfo plugin: Using projects directory: {projects_dir}")
         return projects_dir
 
     def send_json_response(self, response, data):
