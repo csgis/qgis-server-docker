@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  caddy:
+    image: caddy:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - qgis-server-net
+    depends_on:
+      - qgis-server
+
+  qgis-server:
+    image: "camptocamp/qgis-server:latest"
+    environment:
+      # QGIS Server configuration
+      QGIS_SERVER_LOG_STDERR: 1
+      QGIS_SERVER_PARALLEL_RENDERING: "true"
+      QGIS_SERVER_MAX_THREADS: 4
+      QGIS_SERVER_WMS_MAX_HEIGHT: 5000
+      QGIS_SERVER_WMS_MAX_WIDTH: 5000
+      QGIS_PROJECT_FILE: ""  # Set to blank to allow using map parameter in GET requests
+      
+      # Apache/FCGI tuning
+      FCGID_MAX_REQUESTS_PER_PROCESS: 1000
+      FCGID_MIN_PROCESSES: 2
+      FCGID_MAX_PROCESSES: 10
+      FCGID_BUSY_TIMEOUT: 300
+      FCGID_IDLE_TIMEOUT: 300
+      FCGID_IO_TIMEOUT: 60
+      
+      # For debugging (uncomment if needed)
+      # QGIS_CATCH_SEGV: 1
+    networks:
+      - qgis-server-net
+    volumes:
+      # Mount projects directory (read-only is recommended for production)
+      - ./projects:/etc/qgisserver:ro
+      # Mount custom plugins if needed
+      - ./plugins:/var/www/plugins
+      # Mount custom fonts if needed 
+      - ./fonts:/etc/qgisserver/fonts
+    restart: unless-stopped
+    expose:
+      - "8080"  # The Camptocamp image exposes QGIS Server on port 8080
+
+networks:
+  qgis-server-net:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:
