@@ -39,6 +39,12 @@ services:
       # Mount plugins directory
       - ./plugins:/io/plugins
     restart: unless-stopped
+    # Override the entrypoint to start FCGI explicitly
+    entrypoint: /bin/bash
+    command: >
+      -c "spawn-fcgi -p 9993 -n -d /tmp -f /usr/lib/cgi-bin/qgis_mapserv.fcgi && 
+          echo 'QGIS Server started on port 9993' && 
+          tail -f /dev/null"
 
 networks:
   qgis-server-net:

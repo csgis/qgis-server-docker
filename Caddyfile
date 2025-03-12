@@ -1,13 +1,4 @@
 alpaka.cuprit.net {
-    # Setup HTTPS automatically with Let's Encrypt
-    tls internal
-
-    # Add CORS headers
-    header {
-        Access-Control-Allow-Origin *
-        Access-Control-Allow-Methods "GET, POST, OPTIONS"
-        Access-Control-Allow-Headers "Content-Type"
-    }
 
     # Add logging for debugging
     log {
@@ -15,47 +6,19 @@ alpaka.cuprit.net {
         format console
     }
 
-    # Regular QGIS Server requests - pass all parameters
-    @qgis_requests {
-        path /?
-        path /ows*
-    }
-    reverse_proxy @qgis_requests qgis-server:9993 {
-        transport fastcgi {
-            env SCRIPT_NAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
-            env SCRIPT_FILENAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
-            split .php
-        }
-        # Increase timeouts for large map requests
-        transport http {
-            response_header_timeout 300s
-            dial_timeout 30s
-        }
+    # Test endpoint
+    handle /test {
+        respond "Caddy is working!"
     }
 
-    # Projects listing endpoint
-    route /projects {
+    # Simple proxy for QGIS Server
+    handle {
         reverse_proxy qgis-server:9993 {
             transport fastcgi {
-                env SCRIPT_NAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
-                env SCRIPT_FILENAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
-                env QUERY_STRING SERVICE=PROJECTINFO&REQUEST=GETPROJECTS
                 split .php
+                env SCRIPT_FILENAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
+                env SCRIPT_NAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
             }
         }
-        header Content-Type application/json
-    }
-
-    # Project details endpoint
-    route /projects/* {
-        reverse_proxy qgis-server:9993 {
-            transport fastcgi {
-                env SCRIPT_NAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
-                env SCRIPT_FILENAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
-                env QUERY_STRING {query}&SERVICE=PROJECTINFO&REQUEST=GETPROJECTDETAILS&PROJECT={path.1}
-                split .php
-            }
-        }
-        header Content-Type application/json
     }
 }
