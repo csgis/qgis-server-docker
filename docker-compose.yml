@@ -26,7 +26,7 @@ services:
       QGIS_SERVER_WMS_MAX_HEIGHT: 5000
       QGIS_SERVER_WMS_MAX_WIDTH: 5000
       QGIS_PROJECT_FILE: ""  # Set to blank to allow using map parameter in GET requests
-      
+      QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES: "/etc/qgisserver"
       # Apache/FCGI tuning
       FCGID_MAX_REQUESTS_PER_PROCESS: 1000
       FCGID_MIN_PROCESSES: 2

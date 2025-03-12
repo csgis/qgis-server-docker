@@ -1,14 +1,11 @@
 alpaka.cuprit.net {
-    # Enable automatic HTTPS
-    tls internal
+    # Enable automatic HTTPS with Let's Encrypt
+    # Remove the 'tls internal' line to use Let's Encrypt instead of self-signed certs
 
     # Proxy requests to QGIS Server running on Apache (port 80)
     reverse_proxy qgis-server:80 {
         # Optional headers for better proxy handling
         header_up Host {host}
-        header_up X-Real-IP {remote}
-        header_up X-Forwarded-For {remote}
-        header_up X-Forwarded-Proto {scheme}
     }
 
     # Logging options
