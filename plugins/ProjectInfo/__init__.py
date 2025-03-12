@@ -7,9 +7,9 @@
 import os
 import json
 from qgis.server import (
-    QgsServerOgcApi,
-    QgsServerOgcApiHandler,
+    QgsService,
     QgsServerRequest,
+    QgsServerResponse,
     QgsServerInterface
 )
 from qgis.core import (
@@ -22,54 +22,56 @@ def log_message(message, level=Qgis.Info):
     """Helper to log messages"""
     QgsMessageLog.logMessage(message, 'ProjectInfo Plugin', level)
 
-class ProjectInfoApi(QgsServerOgcApi):
-    """ProjectInfo API implementation"""
+class ProjectInfoService(QgsService):
+    """ProjectInfo Service implementation"""
 
-    def __init__(self, server_iface):
-        super().__init__(
-            server_iface,
-            '/projectinfo',
-            'Project Information API',
-            'API to get information about QGIS projects',
-            '1.0.0'
-        )
-        
-        # Register API handlers
-        self.register_handler(ProjectsHandler(server_iface))
-        self.register_handler(ProjectDetailsHandler(server_iface))
-        
-        log_message("ProjectInfo API initialized at /projectinfo")
-
-
-class ProjectsHandler(QgsServerOgcApiHandler):
-    """Handler for /projects endpoint"""
-    
     def __init__(self, server_iface):
         super().__init__()
         self.server_iface = server_iface
+        log_message("ProjectInfo service initialized")
+
+    def name(self):
+        """Return the service name"""
+        return "PROJECTINFO"
         
-    def path(self):
-        """API endpoint path"""
-        return "/projects"
+    def version(self):
+        """Return the service version"""
+        return "1.0.0"
         
-    def description(self):
-        """Handler description"""
-        return "Get list of available QGIS projects"
+    def allowMethod(self, method):
+        """Check if the HTTP method is allowed"""
+        return method in [QgsServerRequest.GetMethod, QgsServerRequest.PostMethod]
         
-    def operationId(self):
-        """Operation ID"""
-        return "getProjects"
+    def executeRequest(self, request, response, project):
+        """Process the request and generate the appropriate response"""
+        params = request.parameters()
         
-    def linkTitle(self):
-        """Link title in API description"""
-        return "Projects List"
+        # Log the request for debugging
+        log_message(f"ProjectInfo request parameters: {params}")
         
-    def linkType(self):
-        """Link relation type"""
-        return "projects"
+        # Determine which action to take
+        req_param = params.get('REQUEST', '').upper()
         
-    def handleRequest(self, context):
-        """Handle the request and return the response"""
+        # Handle requests
+        if req_param == 'GETPROJECTS':
+            self.get_projects(request, response)
+            return True
+            
+        elif req_param == 'GETPROJECTDETAILS':
+            project_path = params.get('PROJECT', '')
+            if project_path:
+                self.get_project_details(request, response, project_path)
+                return True
+            else:
+                self.send_error_response(response, "Missing PROJECT parameter", 400)
+                return True
+                
+        # If we get here with no valid request, default to project list
+        self.get_projects(request, response)
+        return True
+
+    def get_projects(self, request, response):
+        """Return list of all available projects"""
         try:
             projects_dir = self.get_projects_directory()
             
@@ -103,110 +105,41 @@ class ProjectsHandler(QgsServerOgcApiHandler):
                 'projectsDirectory': projects_dir
             }
             
-            return self.createJsonResponse(result)
+            self.send_json_response(response, result)
             
         except Exception as e:
             log_message(f"Error handling projects request: {str(e)}", Qgis.Critical)
-            return self.createJsonResponse(
-                {'error': str(e)},
-                status=500
-            )
-            
-    def get_projects_directory(self):
-        """Get the directory containing QGIS projects"""
-        # Try multiple possible locations for the projects directory
-        candidates = [
-            # Environment variables
-            os.environ.get('QGIS_SERVER_PROJECTS_DIR'),
-            # Landing page setting
-            os.environ.get('QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES', '').split('||')[0],
-            # Camptocamp default
-            '/project'
-        ]
-        
-        # Use the first path that exists
-        for path in candidates:
-            if path and os.path.exists(path):
-                log_message(f"Using projects directory: {path}")
-                return path
-                
-        # If no directory exists, use a default
-        default_dir = '/tmp/qgis_projects'
-        log_message(f"No valid projects directory found, using default: {default_dir}", Qgis.Warning)
-        
-        # Create the directory if it doesn't exist
-        if not os.path.exists(default_dir):
-            os.makedirs(default_dir)
-            
-        return default_dir
+            self.send_error_response(response, str(e), 500)
 
-
-class ProjectDetailsHandler(QgsServerOgcApiHandler):
-    """Handler for /projects/{id} endpoint"""
-    
-    def __init__(self, server_iface):
-        super().__init__()
-        self.server_iface = server_iface
-        
-    def path(self):
-        """API endpoint path"""
-        return "/projects/{id}"
-        
-    def description(self):
-        """Handler description"""
-        return "Get detailed information about a specific QGIS project"
-        
-    def operationId(self):
-        """Operation ID"""
-        return "getProjectDetails"
-        
-    def linkTitle(self):
-        """Link title in API description"""
-        return "Project Details"
-        
-    def linkType(self):
-        """Link relation type"""
-        return "project"
-        
-    def handleRequest(self, context):
-        """Handle the request and return the response"""
+    def get_project_details(self, request, response, project_path):
+        """Return detailed information about a specific project"""
         try:
-            # Get the project ID (path) from the URL
-            project_id = context.matchedPath()['id']
-            log_message(f"Requested project details for: {project_id}")
-            
             # Path manipulation to ensure security (no directory traversal)
-            if '..' in project_id:
-                return self.createJsonResponse(
-                    {'error': 'Invalid project path'},
-                    status=400
-                )
+            if '..' in project_path:
+                self.send_error_response(response, 'Invalid project path', 400)
+                return
                 
             # Get full path
             projects_dir = self.get_projects_directory()
-            project_path = os.path.join(projects_dir, project_id)
+            full_path = os.path.join(projects_dir, project_path)
             
             # Check if file exists
-            if not os.path.exists(project_path):
-                return self.createJsonResponse(
-                    {'error': 'Project not found'},
-                    status=404
-                )
+            if not os.path.exists(full_path):
+                self.send_error_response(response, 'Project not found', 404)
+                return
                 
             # Load the project and extract information
             temp_project = QgsProject()
-            if not temp_project.read(project_path):
-                return self.createJsonResponse(
-                    {'error': 'Failed to read project file'},
-                    status=500
-                )
+            if not temp_project.read(full_path):
+                self.send_error_response(response, 'Failed to read project file', 500)
+                return
                 
             # Extract project information
             info = {
-                'title': temp_project.title() or os.path.splitext(os.path.basename(project_path))[0],
-                'fileName': os.path.basename(project_path),
-                'path': project_id,
-                'modified': os.path.getmtime(project_path),
+                'title': temp_project.title() or os.path.splitext(os.path.basename(full_path))[0],
+                'fileName': os.path.basename(full_path),
+                'path': project_path,
+                'modified': os.path.getmtime(full_path),
                 'projection': {
                     'authid': temp_project.crs().authid(),
                     'description': temp_project.crs().description(),
@@ -239,14 +172,11 @@ class ProjectDetailsHandler(QgsServerOgcApiHandler):
                 }
                 info['layouts'].append(layout_info)
                 
-            return self.createJsonResponse(info)
+            self.send_json_response(response, info)
             
         except Exception as e:
             log_message(f"Error handling project details request: {str(e)}", Qgis.Critical)
-            return self.createJsonResponse(
-                {'error': str(e)},
-                status=500
-            )
+            self.send_error_response(response, str(e), 500)
             
     def get_projects_directory(self):
         """Get the directory containing QGIS projects"""
@@ -254,8 +184,9 @@ class ProjectDetailsHandler(QgsServerOgcApiHandler):
         candidates = [
             # Environment variables
             os.environ.get('QGIS_SERVER_PROJECTS_DIR'),
-            # Landing page setting
-            os.environ.get('QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES', '').split('||')[0] if os.environ.get('QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES') else None,
+            # Landing page setting (split first entry if exists)
+            os.environ.get('QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES', '').split('||')[0] 
+                if os.environ.get('QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES') else None,
             # Camptocamp default
             '/project'
         ]
@@ -263,17 +194,48 @@ class ProjectDetailsHandler(QgsServerOgcApiHandler):
         # Use the first path that exists
         for path in candidates:
             if path and os.path.exists(path):
+                log_message(f"Using projects directory: {path}")
                 return path
                 
         # If no directory exists, use a default
         default_dir = '/tmp/qgis_projects'
+        log_message(f"No valid projects directory found, using default: {default_dir}", Qgis.Warning)
         
         # Create the directory if it doesn't exist
         if not os.path.exists(default_dir):
             os.makedirs(default_dir)
             
         return default_dir
+
+    def send_json_response(self, response, data):
+        """Send a JSON response"""
+        response.setStatusCode(200)
+        response.setHeader("Content-Type", "application/json")
+        response.write(json.dumps(data, indent=2))
+
+    def send_error_response(self, response, message, status=404):
+        """Send an error response"""
+        response.setStatusCode(status)
+        response.setHeader("Content-Type", "application/json")
+        response.write(json.dumps({
+            'error': True,
+            'message': message
+        }, indent=2))
+
+
+class ProjectInfoServer:
+    """QGIS Server Plugin implementation"""
+    
+    def __init__(self, server_iface):
+        self.server_iface = server_iface
+        self.service = ProjectInfoService(server_iface)
         
+        # Register the service with QGIS Server
+        self.server_iface.registerService(self.service)
+        
+        # Log plugin startup
+        log_message('ProjectInfo plugin loaded and service registered')
+
 
 def serverClassFactory(server_iface):
     """
@@ -284,7 +246,7 @@ def serverClassFactory(server_iface):
     """
     try:
         log_message("Loading ProjectInfo plugin")
-        return ProjectInfoApi(server_iface)
+        return ProjectInfoServer(server_iface)
     except Exception as e:
         log_message(f"Error initializing ProjectInfo plugin: {str(e)}", Qgis.Critical)
         return None
