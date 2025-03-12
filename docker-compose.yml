@@ -44,6 +44,8 @@ services:
     restart: unless-stopped
     command: >
       sh -c "mkdir -p /var/log/qgis &&
+             Xvfb :99 -screen 0 1024x768x24 -ac +extension GLX +render -noreset -nolisten tcp &
+             export DISPLAY=:99 &&
              spawn-fcgi -p 9993 -n -d /tmp 
              /usr/lib/cgi-bin/qgis_mapserv.fcgi"
 
