@@ -1,0 +1,19 @@
+[general]
+name=ProjectInfo
+qgisMinimumVersion=3.0
+description=Exposes information about all published QGIS projects as JSON
+version=0.1
+author=QGIS Developer
+email=info@qgis.org
+
+about=This plugin provides a JSON API endpoint that outputs information about all published QGIS Server projects, including title, projection, layer information, and more.
+
+tracker=https://github.com/yourusername/qgis-projectinfo/issues
+repository=https://github.com/yourusername/qgis-projectinfo
+homepage=https://github.com/yourusername/qgis-projectinfo
+
+server=True
+
+tags=server,web,json,api,metadata
+
+category=Web
