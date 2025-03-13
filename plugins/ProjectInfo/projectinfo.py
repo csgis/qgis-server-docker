@@ -30,6 +30,21 @@ class ProjectInfoFilter(QgsServerFilter):
         self.server_iface = server_iface
         log_message("ProjectInfo filter initialized")
         
+    def responseReady(self):
+        """Called when response has been prepared but not yet sent"""
+        # We don't need to do anything here
+        pass
+    
+    def responseComplete(self):
+        """Called when response has been sent to client"""
+        # We don't need to do anything here
+        pass
+    
+    def sendResponse(self):
+        """Called when response should be sent to client"""
+        # We don't need to do anything here
+        return False
+    
     def requestReady(self):
         """Called when request is ready but before it is processed"""
         handler = self.server_iface.requestHandler()
@@ -38,32 +53,36 @@ class ProjectInfoFilter(QgsServerFilter):
         # Log all parameters for debugging
         log_message(f"Request parameters: {params}")
         
-        # Check if this is a request for our plugin functionality
-        # We're going to extend the WMS service with our custom REQUEST types
-        service = params.get('SERVICE', '').upper()
+        # Check for our special requests - regardless of service
         request_type = params.get('REQUEST', '').upper()
         
-        # We'll hook into the WMS service
-        if service != 'WMS':
-            return
-            
-        # Check for our custom request types
         if request_type == 'GETPROJECTS':
             log_message("Handling GetProjects request")
-            self.get_projects()
-            return
+            try:
+                self.get_projects()
+                return True  # Request handled
+            except Exception as e:
+                log_message(f"Error handling GetProjects request: {str(e)}", Qgis.Critical)
+                self.send_error_response(str(e), 500)
+                return True  # Request handled
+                
         elif request_type == 'GETPROJECTDETAILS':
             log_message("Handling GetProjectDetails request")
             project_path = params.get('PROJECT', '')
             if project_path:
-                self.get_project_details(project_path)
-                return
+                try:
+                    self.get_project_details(project_path)
+                    return True  # Request handled
+                except Exception as e:
+                    log_message(f"Error handling GetProjectDetails request: {str(e)}", Qgis.Critical)
+                    self.send_error_response(str(e), 500)
+                    return True  # Request handled
             else:
                 self.send_error_response("Missing PROJECT parameter", 400)
-                return
+                return True  # Request handled
         
         # If not our custom request type, let QGIS Server handle it normally
-        return
+        return False
         
     def get_projects(self):
         """Return list of all available projects"""
@@ -251,8 +270,8 @@ class ProjectInfoServer:
         self.server_iface = server_iface
         self.filter = ProjectInfoFilter(server_iface)
         
-        # Register the filter with QGIS Server
-        server_iface.registerFilter(self.filter, 100)
+        # Register the filter with higher priority (lower number)
+        server_iface.registerFilter(self.filter, 10)
         
         # Log plugin startup
         log_message('ProjectInfo plugin loaded and filter registered')
