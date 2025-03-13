@@ -10,15 +10,21 @@ alpaka.cuprit.net {
 		respond "Caddy is working!"
 	}
 
-	handle {
+	# Add route for ProjectInfo API - must be BEFORE the catch-all handler
+	handle /projects/* {
+		uri strip_prefix /projects
+		reverse_proxy qgis-server:80 {
+			header_up SERVICE "PROJECTINFO"
+		}
+	}
+
+	# OGC services route
+	handle /ogc/* {
 		reverse_proxy qgis-server:80
 	}
 
-        # Add route for ProjectInfo API
-    handle /projects/* {
-        uri strip_prefix /projects
-        reverse_proxy qgis-server:80 {
-            header_up SERVICE "PROJECTINFO"
-        }
-    }
+	# Catch-all handler - must be LAST
+	handle {
+		reverse_proxy qgis-server:80
+	}
 }
