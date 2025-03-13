@@ -179,12 +179,13 @@ class ProjectInfoFilter(QgsServerFilter):
                 'projection': {
                     'authid': temp_project.crs().authid(),
                     'description': temp_project.crs().description(),
-                    'proj4': temp_project.crs().toProj4()
-                },
-                'layers': []
+                    # Remove deprecated toProj4() call
+                    # 'proj4': temp_project.crs().toProj4()
+                }
             }
             
             # Add layer information
+            info['layers'] = []
             for layer_id, layer in temp_project.mapLayers().items():
                 layer_info = {
                     'id': layer_id,
@@ -234,9 +235,6 @@ class ProjectInfoFilter(QgsServerFilter):
         # Stop further request processing
         handler.appendBody(json_data)
         
-        # Remove the setEnv call that's causing issues
-        # handler.setEnv('SERVED_BY_PROJECTINFO', '1')
-        
     def send_error_response(self, message, status=404):
         """Send an error response"""
         handler = self.server_iface.requestHandler()
@@ -252,9 +250,6 @@ class ProjectInfoFilter(QgsServerFilter):
         }
         
         handler.appendBody(json.dumps(error_data, indent=2).encode('utf-8'))
-        
-        # Remove the setEnv call that's causing issues
-        # handler.setEnv('SERVED_BY_PROJECTINFO', '1')
 
 class ProjectInfoServer:
     """QGIS Server Plugin implementation"""
