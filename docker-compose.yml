@@ -20,9 +20,6 @@ services:
   qgis-server:
     image: "qgis/qgis-server:ltr"
     environment:
-      # Skip the built-in Nginx
-      # SKIP_NGINX: "true"
-      # QGIS Server configuration
       QGIS_PLUGINPATH: "/io/plugins"
       QGIS_SERVER_PARALLEL_RENDERING: "true"
       QGIS_SERVER_MAX_THREADS: "4"
@@ -32,18 +29,12 @@ services:
       QGIS_SERVER_LOG_STDERR: "true"
       # Enable our plugin
       QGIS_SERVER_PLUGIN_ProjectInfo: "1"
-      # Set display for Xvfb
-      #DISPLAY: ":99"
     networks:
       - qgis-server-net
     volumes:
-      # Mount project data
       - ./projects:/io/data:ro
-      # Mount plugins directory
       - ./plugins:/io/plugins
     restart: unless-stopped
-    # Override the entrypoint to start Xvfb and FCGI
-    # entrypoint: /bin/bash
     ports:
       - "8010:80"
 

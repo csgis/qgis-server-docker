@@ -1,9 +1,8 @@
 [general]
 name=ProjectInfo
-qgisMinimumVersion=3.16
-description=Project Information API
-about=Provides information about QGIS server projects
-version=0.1
-author=QGIS Developer
-email=info@qgis.org
+qgisMinimumVersion=3.0
+description=Provides JSON endpoint for QGIS Server project information
+version=1.0
+author=QGIS User
+email=user@example.com
 server=True
