@@ -50,13 +50,20 @@ class ProjectInfoFilter(QgsServerFilter):
         handler = self.server_iface.requestHandler()
         params = handler.parameterMap()
         
-        # Log all parameters for debugging
-        log_message(f"Request parameters: {params}")
+        # Get the request URI to check if it's for our API
+        request_uri = os.environ.get('REQUEST_URI', '')
         
-        # Check for our special requests - regardless of service
+        # Only process requests that start with /api/
+        if not request_uri.startswith('/api/'):
+            return False
+        
+        # Log all parameters for debugging
+        log_message(f"Request URI: {request_uri}, Parameters: {params}")
+        
+        # Check for our special requests
         request_type = params.get('REQUEST', '').upper()
         
-        if request_type == 'GETPROJECTS':
+        if request_type == 'GETPROJECTS' or request_uri.rstrip('/').endswith('/api/projects'):
             log_message("Handling GetProjects request")
             try:
                 self.get_projects()
@@ -66,9 +73,16 @@ class ProjectInfoFilter(QgsServerFilter):
                 self.send_error_response(str(e), 500)
                 return True  # Request handled
                 
-        elif request_type == 'GETPROJECTDETAILS':
+        elif request_type == 'GETPROJECTDETAILS' or '/api/projects/' in request_uri:
             log_message("Handling GetProjectDetails request")
+            # Extract project name from URI if not in parameters
             project_path = params.get('PROJECT', '')
+            if not project_path and '/api/projects/' in request_uri:
+                # Extract project name from URL
+                parts = request_uri.split('/api/projects/')
+                if len(parts) > 1:
+                    project_path = parts[1].split('?')[0]
+                    
             if project_path:
                 try:
                     self.get_project_details(project_path)
@@ -81,7 +95,17 @@ class ProjectInfoFilter(QgsServerFilter):
                 self.send_error_response("Missing PROJECT parameter", 400)
                 return True  # Request handled
         
-        # If not our custom request type, let QGIS Server handle it normally
+        # Handle /api/projectinfo/ separately if needed
+        if '/api/projectinfo/' in request_uri:
+            # Let QGIS Server handle this normally - it's for OGC services
+            return False
+        
+        # If it's an /api/ request but we didn't handle it, return a helpful error
+        if request_uri.startswith('/api/'):
+            self.send_error_response(f"Unknown API endpoint: {request_uri}", 404)
+            return True
+            
+        # If not our API endpoint, let QGIS Server handle it normally
         return False
         
     def get_projects(self):
