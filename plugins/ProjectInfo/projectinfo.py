@@ -6,6 +6,7 @@ Provides JSON endpoint for QGIS Server project information
 
 import os
 import json
+import re
 from qgis.server import (
     QgsServerFilter,
     QgsServerRequest,
@@ -34,12 +35,22 @@ class ProjectInfoFilter(QgsServerFilter):
         handler = self.server_iface.requestHandler()
         params = handler.parameterMap()
         
+        # Log all parameters for debugging
+        log_message(f"Request parameters: {params}")
+        
         # Check if this is a request for our service
         service = params.get('SERVICE', '').upper()
-        if service != 'PROJECTINFO':
+        request_uri = os.environ.get('REQUEST_URI', '')
+        
+        log_message(f"Request URI: {request_uri}")
+        
+        # Check if our service is requested via params or URI path
+        is_projectinfo = (service == 'PROJECTINFO')
+        
+        if not is_projectinfo:
             return
             
-        log_message(f"Handling ProjectInfo request: {params}")
+        log_message(f"Handling ProjectInfo request")
         
         # Determine which action to take
         req_param = params.get('REQUEST', '').upper()
@@ -83,9 +94,18 @@ class ProjectInfoFilter(QgsServerFilter):
             for project_file in project_files:
                 full_path = os.path.join(projects_dir, project_file)
                 try:
+                    # Extract project name (without extension)
+                    project_name = os.path.splitext(os.path.basename(project_file))[0]
+                    
+                    # Check if the project is in a directory of the same name
+                    parent_dir = os.path.dirname(project_file)
+                    is_standard_structure = (os.path.basename(parent_dir) == project_name)
+                    
                     info = {
-                        'title': os.path.splitext(os.path.basename(project_file))[0],
+                        'title': project_name,
                         'path': project_file,
+                        'apiUrl': f"/api/projects/{project_file}" if not is_standard_structure else f"/api/projects/{project_name}",
+                        'serviceUrl': f"/api/projectinfo/{project_name}" if is_standard_structure else None,
                         'modified': os.path.getmtime(full_path),
                         'size': os.path.getsize(full_path)
                     }
@@ -114,9 +134,27 @@ class ProjectInfoFilter(QgsServerFilter):
                 self.send_error_response('Invalid project path', 400)
                 return
                 
-            # Get full path
             projects_dir = "/io/data"  # Path for QGIS/QGIS Server image
-            full_path = os.path.join(projects_dir, project_path)
+            full_path = ""
+            
+            # Check if project_path is just a project name (for standard structure)
+            if not project_path.endswith('.qgs') and not project_path.endswith('.qgz'):
+                # Try to find the project in a directory of the same name
+                potential_qgs = os.path.join(projects_dir, project_path, f"{project_path}.qgs")
+                potential_qgz = os.path.join(projects_dir, project_path, f"{project_path}.qgz")
+                
+                if os.path.exists(potential_qgs):
+                    full_path = potential_qgs
+                    project_path = os.path.join(project_path, f"{project_path}.qgs")
+                elif os.path.exists(potential_qgz):
+                    full_path = potential_qgz
+                    project_path = os.path.join(project_path, f"{project_path}.qgz")
+                else:
+                    # Not found in standard structure, might be a direct file reference
+                    full_path = os.path.join(projects_dir, project_path)
+            else:
+                # Direct file reference
+                full_path = os.path.join(projects_dir, project_path)
             
             # Check if file exists
             if not os.path.exists(full_path):
@@ -128,17 +166,32 @@ class ProjectInfoFilter(QgsServerFilter):
             if not temp_project.read(full_path):
                 self.send_error_response('Failed to read project file', 500)
                 return
+            
+            # Get project name without extension
+            project_name = os.path.splitext(os.path.basename(full_path))[0]
+            
+            # Check if the project is in a directory of the same name (standard structure)
+            parent_dir = os.path.dirname(project_path)
+            is_standard_structure = (os.path.basename(parent_dir) == project_name)
                 
             # Extract project information
             info = {
-                'title': temp_project.title() or os.path.splitext(os.path.basename(full_path))[0],
+                'title': temp_project.title() or project_name,
                 'fileName': os.path.basename(full_path),
                 'path': project_path,
+                'apiUrl': f"/api/projects/{project_path}",
+                'serviceUrl': f"/api/projectinfo/{project_name}" if is_standard_structure else None,
                 'modified': os.path.getmtime(full_path),
                 'projection': {
                     'authid': temp_project.crs().authid(),
                     'description': temp_project.crs().description(),
                     'proj4': temp_project.crs().toProj4()
+                },
+                'extent': {
+                    'xmin': temp_project.transformContext().calculateSourceExtent().xMinimum(),
+                    'ymin': temp_project.transformContext().calculateSourceExtent().yMinimum(),
+                    'xmax': temp_project.transformContext().calculateSourceExtent().xMaximum(),
+                    'ymax': temp_project.transformContext().calculateSourceExtent().yMaximum()
                 },
                 'layers': []
             }
@@ -167,6 +220,13 @@ class ProjectInfoFilter(QgsServerFilter):
                 }
                 info['layouts'].append(layout_info)
                 
+            # Add WMS/WFS capabilities URLs if using standard structure
+            if is_standard_structure:
+                info['services'] = {
+                    'wms': f"/api/projectinfo/{project_name}?SERVICE=WMS&REQUEST=GetCapabilities",
+                    'wfs': f"/api/projectinfo/{project_name}?SERVICE=WFS&REQUEST=GetCapabilities"
+                }
+                
             self.send_json_response(info)
             
         except Exception as e:
@@ -183,10 +243,9 @@ class ProjectInfoFilter(QgsServerFilter):
         # Convert data to JSON byte string
         json_data = json.dumps(data, indent=2).encode('utf-8')
         
-        # Stop further request processing by setting a flag
-        self.server_iface.requestHandler().setResponseHeader('Status', '200 OK')
-        self.server_iface.requestHandler().appendBody(json_data)
-        self.server_iface.requestHandler().setEnv('SERVED_BY_PROJECTINFO', '1')
+        # Stop further request processing
+        handler.appendBody(json_data)
+        handler.setEnv('SERVED_BY_PROJECTINFO', '1')
         
     def send_error_response(self, message, status=404):
         """Send an error response"""
@@ -203,7 +262,7 @@ class ProjectInfoFilter(QgsServerFilter):
         }
         
         handler.appendBody(json.dumps(error_data, indent=2).encode('utf-8'))
-        self.server_iface.requestHandler().setEnv('SERVED_BY_PROJECTINFO', '1')
+        handler.setEnv('SERVED_BY_PROJECTINFO', '1')
 
 class ProjectInfoServer:
     """QGIS Server Plugin implementation"""

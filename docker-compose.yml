@@ -34,6 +34,8 @@ services:
     volumes:
       - ./projects:/io/data:ro
       - ./plugins:/io/plugins
+      - ./nginx-conf/api-endpoints.conf:/etc/nginx/conf.d/api-endpoints.conf:ro
+
     restart: unless-stopped
     ports:
       - "8010:80"
