@@ -1,24 +1,23 @@
 alpaka.cuprit.net {
+	# Add logging for debugging
+	log {
+		output file /data/access.log
+		format console
+	}
 
-    # Add logging for debugging
-    log {
-        output file /data/access.log
-        format console
-    }
+	# Test endpoint
+	handle /test {
+		respond "Caddy is working!"
+	}
 
-    # Test endpoint
-    handle /test {
-        respond "Caddy is working!"
-    }
-
-    # Simple proxy for QGIS Server
-    handle {
-        reverse_proxy qgis-server:9993 {
-            transport fastcgi {
-                split .php
-                env SCRIPT_FILENAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
-                env SCRIPT_NAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
-            }
-        }
-    }
+	# Simple proxy for QGIS Server
+	handle {
+		reverse_proxy qgis-server:80 {
+			transport fastcgi {
+				split .php
+				env SCRIPT_FILENAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
+				env SCRIPT_NAME /usr/lib/cgi-bin/qgis_mapserv.fcgi
+			}
+		}
+	}
 }

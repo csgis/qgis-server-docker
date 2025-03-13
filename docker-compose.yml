@@ -16,23 +16,24 @@ services:
     depends_on:
       - qgis-server
 
+
   qgis-server:
-    image: "qgis/qgis-server:stable"
+    image: "qgis/qgis-server:ltr"
     environment:
       # Skip the built-in Nginx
-      SKIP_NGINX: "true"
+      # SKIP_NGINX: "true"
       # QGIS Server configuration
       QGIS_PLUGINPATH: "/io/plugins"
       QGIS_SERVER_PARALLEL_RENDERING: "true"
       QGIS_SERVER_MAX_THREADS: "4"
-      QGIS_SERVER_WMS_MAX_HEIGHT: "5000"
-      QGIS_SERVER_WMS_MAX_WIDTH: "5000"
-      QGIS_SERVER_LOG_LEVEL: "0"
+      #QGIS_SERVER_WMS_MAX_HEIGHT: "5000"
+      #QGIS_SERVER_WMS_MAX_WIDTH: "5000"
+      #QGIS_SERVER_LOG_LEVEL: "0"
       QGIS_SERVER_LOG_STDERR: "true"
       # Enable our plugin
       QGIS_SERVER_PLUGIN_ProjectInfo: "1"
       # Set display for Xvfb
-      DISPLAY: ":99"
+      #DISPLAY: ":99"
     networks:
       - qgis-server-net
     volumes:
@@ -42,13 +43,10 @@ services:
       - ./plugins:/io/plugins
     restart: unless-stopped
     # Override the entrypoint to start Xvfb and FCGI
-    entrypoint: /bin/bash
-    command: >
-      -c "Xvfb :99 -screen 0 1024x768x24 -ac +extension GLX +render -noreset -nolisten tcp & 
-          sleep 2 && 
-          spawn-fcgi -p 9993 -n -d /tmp -f /usr/lib/cgi-bin/qgis_mapserv.fcgi && 
-          echo 'QGIS Server started on port 9993' && 
-          tail -f /dev/null"
+    # entrypoint: /bin/bash
+    ports:
+      - "8010:80"
+
 
 networks:
   qgis-server-net:
