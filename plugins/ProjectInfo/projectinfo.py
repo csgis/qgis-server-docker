@@ -6,7 +6,6 @@ Provides JSON endpoint for QGIS Server project information
 
 import os
 import json
-import re
 from qgis.server import (
     QgsServerFilter,
     QgsServerRequest,
@@ -40,14 +39,9 @@ class ProjectInfoFilter(QgsServerFilter):
         
         # Check if this is a request for our service
         service = params.get('SERVICE', '').upper()
-        request_uri = os.environ.get('REQUEST_URI', '')
         
-        log_message(f"Request URI: {request_uri}")
-        
-        # Check if our service is requested via params or URI path
-        is_projectinfo = (service == 'PROJECTINFO')
-        
-        if not is_projectinfo:
+        # Make sure we're only handling our own requests
+        if service != 'PROJECTINFO':
             return
             
         log_message(f"Handling ProjectInfo request")
@@ -187,12 +181,6 @@ class ProjectInfoFilter(QgsServerFilter):
                     'description': temp_project.crs().description(),
                     'proj4': temp_project.crs().toProj4()
                 },
-                'extent': {
-                    'xmin': temp_project.transformContext().calculateSourceExtent().xMinimum(),
-                    'ymin': temp_project.transformContext().calculateSourceExtent().yMinimum(),
-                    'xmax': temp_project.transformContext().calculateSourceExtent().xMaximum(),
-                    'ymax': temp_project.transformContext().calculateSourceExtent().yMaximum()
-                },
                 'layers': []
             }
             
@@ -245,7 +233,9 @@ class ProjectInfoFilter(QgsServerFilter):
         
         # Stop further request processing
         handler.appendBody(json_data)
-        handler.setEnv('SERVED_BY_PROJECTINFO', '1')
+        
+        # Remove the setEnv call that's causing issues
+        # handler.setEnv('SERVED_BY_PROJECTINFO', '1')
         
     def send_error_response(self, message, status=404):
         """Send an error response"""
@@ -262,7 +252,9 @@ class ProjectInfoFilter(QgsServerFilter):
         }
         
         handler.appendBody(json.dumps(error_data, indent=2).encode('utf-8'))
-        handler.setEnv('SERVED_BY_PROJECTINFO', '1')
+        
+        # Remove the setEnv call that's causing issues
+        # handler.setEnv('SERVED_BY_PROJECTINFO', '1')
 
 class ProjectInfoServer:
     """QGIS Server Plugin implementation"""
