@@ -1,8 +1,0 @@
-[general]
-name=ProjectInfo
-qgisMinimumVersion=3.0
-description=Provides JSON endpoint for QGIS Server project information
-version=1.0
-author=QGIS User
-email=user@example.com
-server=True

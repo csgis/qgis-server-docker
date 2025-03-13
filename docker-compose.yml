@@ -32,7 +32,7 @@ services:
     networks:
       - qgis-server-net
     volumes:
-      - ./projects:/io/data:ro
+      - /home/qgisprojects/projects:/io/data:ro
       - ./plugins:/io/plugins
       - ./nginx-conf/custom-nginx.conf:/etc/nginx/nginx.conf:ro
 
