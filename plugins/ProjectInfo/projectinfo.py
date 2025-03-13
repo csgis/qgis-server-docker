@@ -2,6 +2,7 @@
 """
 QGIS Server Plugin: ProjectInfo
 Provides JSON endpoint for QGIS Server project information
+as an extension to the WMS service
 """
 
 import os
@@ -37,38 +38,32 @@ class ProjectInfoFilter(QgsServerFilter):
         # Log all parameters for debugging
         log_message(f"Request parameters: {params}")
         
-        # Check if this is a request for our service
+        # Check if this is a request for our plugin functionality
+        # We're going to extend the WMS service with our custom REQUEST types
         service = params.get('SERVICE', '').upper()
+        request_type = params.get('REQUEST', '').upper()
         
-        # Make sure we're only handling our own requests
-        if service != 'PROJECTINFO':
+        # We'll hook into the WMS service
+        if service != 'WMS':
             return
             
-        log_message(f"Handling ProjectInfo request")
-        
-        # Determine which action to take
-        req_param = params.get('REQUEST', '').upper()
-        
-        try:
-            if req_param == 'GETPROJECTS':
-                self.get_projects()
-                return
-                
-            elif req_param == 'GETPROJECTDETAILS':
-                project_path = params.get('PROJECT', '')
-                if project_path:
-                    self.get_project_details(project_path)
-                    return
-                else:
-                    self.send_error_response("Missing PROJECT parameter", 400)
-                    return
-                    
-            # Default action is to list projects
+        # Check for our custom request types
+        if request_type == 'GETPROJECTS':
+            log_message("Handling GetProjects request")
             self.get_projects()
-            
-        except Exception as e:
-            log_message(f"Error handling ProjectInfo request: {str(e)}", Qgis.Critical)
-            self.send_error_response(str(e), 500)
+            return
+        elif request_type == 'GETPROJECTDETAILS':
+            log_message("Handling GetProjectDetails request")
+            project_path = params.get('PROJECT', '')
+            if project_path:
+                self.get_project_details(project_path)
+                return
+            else:
+                self.send_error_response("Missing PROJECT parameter", 400)
+                return
+        
+        # If not our custom request type, let QGIS Server handle it normally
+        return
         
     def get_projects(self):
         """Return list of all available projects"""
@@ -178,9 +173,7 @@ class ProjectInfoFilter(QgsServerFilter):
                 'modified': os.path.getmtime(full_path),
                 'projection': {
                     'authid': temp_project.crs().authid(),
-                    'description': temp_project.crs().description(),
-                    # Remove deprecated toProj4() call
-                    # 'proj4': temp_project.crs().toProj4()
+                    'description': temp_project.crs().description()
                 }
             }
             
