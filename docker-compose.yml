@@ -34,8 +34,6 @@ services:
     volumes:
       - /home/qgisprojects/projects:/io/data:ro
       - ./plugins:/io/plugins
-      - ./nginx-conf/custom-nginx.conf:/etc/nginx/nginx.conf:ro
-
     restart: unless-stopped
     ports:
       - "8010:80"
